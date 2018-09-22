@@ -92,7 +92,10 @@ func (a AtlasBroker) Provision(ctx context.Context, instanceID string, details b
 		provider.DiskIOPS = 300
 		provider.EncryptEBSVolume = false
 	case gcpDev:
-		//TODO
+		provider.ProviderName = "GCP"
+		provider.RegionName = "EASTERN_US"
+		provider.InstanceSizeName = "M10"
+		provider.DiskIOPS = 300
 	default:
 		// TODO
 		return returnObject, fmt.Errorf("todo")
