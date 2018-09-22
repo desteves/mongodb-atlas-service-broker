@@ -24,6 +24,8 @@ const (
 
 	OperationDeprovision = "deprovision"
 	OperationProvision   = "provision"
+	OperationBind        = "bind"
+	OperationUnbind      = "unbind"
 
 	StateIDLE      = "IDLE"
 	StateCREATING  = "CREATING"
@@ -33,6 +35,10 @@ const (
 	StateREPAIRING = "REPAIRING"
 
 	ErrorCode404 = "CLUSTER_NOT_FOUND"
+
+	UserDatabaseStore = "admin"
+	UserRoleDatabase  = "admin"
+	UserRoleName      = "readWriteAnyDatabase"
 )
 
 // AutoScaling - Provision Setting
@@ -71,6 +77,13 @@ type BiConnector struct {
 type Links struct {
 	Href string `json:"href"`
 	Rel  string `json:"rel"`
+}
+
+// Roles --
+type Roles struct {
+	CollectionName string `json:"collectionName,omitempty"`
+	DatabaseName   string `json:"databaseName"`
+	RoleName       string `json:"roleName"`
 }
 
 // Horrible to have the region as the field name, ughr!!!!
@@ -119,6 +132,22 @@ type ProvisionResponse struct {
 type DeprovisionResponse struct {
 }
 
+//UnbindResponse struct
+type UnbindResponse struct {
+}
+
+//LastBindingOperationResponse struct -- Gets a single databse user
+type LastBindingOperationResponse struct {
+	DatabaseName    string  `json:"databaseName"`
+	DeleteAfterDate string  `json:"deleteAfterDate,omitempty"`
+	GroupID         string  `json:"groupId"`
+	Links           []Links `json:"links"`
+	Roles           []Roles `json:"roles"`
+	Username        string  `json:"username"`
+
+	//TODO may have to add fields to handle error json response -- CHECK
+}
+
 //LastOperationResponse struct
 type LastOperationResponse struct {
 	AutoScaling              AutoScaling      `json:"autoScaling,omitempty"`
@@ -145,6 +174,28 @@ type LastOperationResponse struct {
 	ErrorCode  string   `json:"errorCode"`
 	Parameters []string `json:"parameters,omitempty"`
 	Reason     string   `json:"reason,omitempty"`
+}
+
+// BindRequest struct - Bind Settings
+type BindRequest struct {
+	DatabaseName    string  `json:"databaseName"`
+	Password        string  `json:"password"`
+	Roles           []Roles `json:"roles"`
+	Username        string  `json:"username"`
+	DeleteAfterDate string  `json:"deleteAfterDate,omitempty"`
+	GroupID         string  `json:"groupId"`
+}
+
+//BindResponse struct - Bind Settings
+type BindResponse struct {
+	DatabaseName    string  `json:"databaseName"`
+	DeleteAfterDate string  `json:"deleteAfterDate,omitempty"`
+	GroupID         string  `json:"groupId"`
+	Links           []Links `json:"links"`
+	Roles           []Roles `json:"roles"`
+	Username        string  `json:"username"`
+
+	//TODO may have to add fields to handle error json response -- CHECK
 }
 
 // Does the digest handshake and assembles the actuall http call to make -- TODO move to client
@@ -245,8 +296,8 @@ func DoDELETE(argURI string) ([]byte, error) {
 
 //NewCluster in MongoDB Atlas
 func NewCluster(argPostBody []byte) (ProvisionResponse, error) {
-	returnObject := ProvisionResponse{}
 	uri := "/groups/" + Group + "/clusters"
+	returnObject := ProvisionResponse{}
 	body, err := DoPOST(uri, argPostBody)
 	if err != nil {
 		log.Printf("Error - NewCluster - Failed DoPOST call.  Body: %+v, Err: %+v", body, err)
@@ -254,8 +305,26 @@ func NewCluster(argPostBody []byte) (ProvisionResponse, error) {
 	}
 	err = json.Unmarshal(body, &returnObject)
 	if err != nil {
-		log.Printf("Error - NewCluster - Failed Unmarshal. ProvisionResponse: %+v, Err: %+v", returnObject, err)
+		log.Printf("Error - NewCluster - Failed Unmarshal. Response: %+v, Err: %+v", returnObject, err)
 		return ProvisionResponse{}, err
+	}
+	return returnObject, err
+}
+
+//NewUser in MongoDB Atlas
+func NewUser(argPostBody []byte) (BindResponse, error) {
+	// https://docs.atlas.mongodb.com/reference/api/database-users-create-a-user/
+	uri := "/groups/" + Group + "/databaseUsers"
+	returnObject := BindResponse{}
+	body, err := DoPOST(uri, argPostBody)
+	if err != nil {
+		log.Printf("Error - NewUser - Failed DoPOST call.  Body: %+v, Err: %+v", body, err)
+		return returnObject, err
+	}
+	err = json.Unmarshal(body, &returnObject)
+	if err != nil {
+		log.Printf("Error - NewUser - Failed Unmarshal. Response: %+v, Err: %+v", returnObject, err)
+		return returnObject, err
 	}
 	return returnObject, err
 }
@@ -271,10 +340,28 @@ func GetCluster(instanceID string) (LastOperationResponse, error) {
 	}
 	err = json.Unmarshal(body, &returnObject)
 	if err != nil {
-		log.Printf("Error - GetCluster - Failed Unmarshal. LastOperationResponse: %+v, Err: %+v", returnObject, err)
-		return LastOperationResponse{}, err
+		log.Printf("Error - GetCluster - Failed Unmarshal. Response: %+v, Err: %+v", returnObject, err)
+		return returnObject, err
 	}
-	return returnObject, err
+	return returnObject, nil
+}
+
+//GetUser in MongoDB Atlas
+func GetUser(instanceID string, bindingID string) (LastBindingOperationResponse, error) {
+	returnObject := LastBindingOperationResponse{}
+	//https://docs.atlas.mongodb.com/reference/api/database-users-get-single-user/
+	uri := "/groups/" + Group + "/databaseUsers/admin/" + bindingID
+	body, err := DoGET(uri)
+	if err != nil {
+		log.Printf("Error - GetUser - Failed DoGET call.  Body: %+v, Err: %+v", body, err)
+		return returnObject, err
+	}
+	err = json.Unmarshal(body, &returnObject)
+	if err != nil {
+		log.Printf("Error - GetUser - Failed Unmarshal. Response: %+v, Err: %+v", returnObject, err)
+		return returnObject, err
+	}
+	return returnObject, nil
 }
 
 //TerminateCluster in MongoDB Atlas
@@ -285,6 +372,18 @@ func TerminateCluster(instanceID string) (DeprovisionResponse, error) {
 		log.Printf("Error - TerminateCluster - Failed DoDELETE call.  Err: %+v", err)
 	}
 	return DeprovisionResponse{}, err
+}
+
+//DeleteUser in MongoDB Atlas
+func DeleteUser(instanceID string, bindingID string) (UnbindResponse, error) {
+	//https://docs.atlas.mongodb.com/reference/api/database-users-delete-a-user/
+	//DELETE /api/atlas/v1.0/groups/{GROUP-ID}/databaseUsers/admin/{USERNAME}
+	uri := "/groups/" + Group + "/databaseUsers/admin/" + bindingID
+	_, err := DoDELETE(uri)
+	if err != nil {
+		log.Printf("Error - DeleteUser - Failed DoDELETE call.  Err: %+v", err)
+	}
+	return UnbindResponse{}, err
 }
 
 //

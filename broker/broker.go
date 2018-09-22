@@ -111,7 +111,7 @@ func (a AtlasBroker) Provision(ctx context.Context, instanceID string, details b
 
 	returnObject.IsAsync = true
 	returnObject.OperationData = OperationProvision
-	returnObject.DashboardURL = Host + "/v2/groups/" + Group + "#clusters/detail/" + instanceID32
+	returnObject.DashboardURL = Host + "/v2/" + Group + "#clusters/detail/" + instanceID32
 	return returnObject, err
 }
 
@@ -131,6 +131,7 @@ func (a AtlasBroker) Deprovision(ctx context.Context, instanceID string, details
 	return returnObject, err
 }
 
+// GET localhost:8080/v2/service_instances/abc123abc123abc123/last_operation?service_id=atlas&plan_id=aws_dev&operation=provision
 // GET localhost:8080/v2/service_instances/abc123abc123abc123/last_operation?service_id=atlas&plan_id=aws_dev&operation=deprovision
 
 // LastOperation - MongoDB Atlas Broker
@@ -148,6 +149,7 @@ func (a AtlasBroker) LastOperation(ctx context.Context, instanceID string, detai
 	switch details.OperationData {
 	case OperationDeprovision:
 		if response.StateName == StateDELETED || response.ErrorCode == ErrorCode404 {
+			// TODO ErrorCode404 in OperationDeprovision should really return a 410 Gone response
 			lastOperationState = brokerapi.Succeeded
 		} else if response.StateName == StateDELETING {
 			lastOperationState = brokerapi.InProgress
@@ -174,35 +176,129 @@ func (a AtlasBroker) LastOperation(ctx context.Context, instanceID string, detai
 	return returnObject, nil
 }
 
-// Bind - MongoDB Atlas Broker
+// Update - MongoDB Atlas Broker --- TODO
+func (a AtlasBroker) Update(ctx context.Context, instanceID string, details brokerapi.UpdateDetails, asyncAllowed bool) (brokerapi.UpdateServiceSpec, error) {
+	// instanceID32 := strings.Replace(instanceID, "-", "", -1)
+	returnObject := brokerapi.UpdateServiceSpec{}
+	return returnObject, nil
+}
+
+// PUT localhost:8080/v2/service_instances/abc123abc123abc123/service_bindings/bbbbbbbb
+
+// Bind - MongoDB Atlas Broker - Creates a readWriteAnyDatabse user in the Atlas project
 func (a AtlasBroker) Bind(ctx context.Context, instanceID, bindingID string, details brokerapi.BindDetails, asyncAllowed bool) (brokerapi.Binding, error) {
 
+	instanceID32 := strings.Replace(instanceID, "-", "", -1)
+	bindingID32 := strings.Replace(bindingID, "-", "", -1)
+	returnObject := brokerapi.Binding{}
+	request := BindRequest{}
+
+	request.DatabaseName = UserDatabaseStore
+	request.GroupID = Group
+	role := Roles{DatabaseName: UserRoleDatabase, RoleName: UserRoleName}
+	request.Roles = []Roles{role}
+
+	// TODO - Generate and fetch from CredHub
+	request.Username = bindingID32
+	request.Password = instanceID32
+
+	log.Printf("\nBind (request): %+v", request)
+
+	json, err := json.Marshal(request)
+	if err != nil {
+		log.Printf("Error - Bind - Failed Marshal. JSON: %+v, Err: %+v", json, err)
+		return returnObject, err
+	}
+	response, err := NewUser(json) // BindResponse
+	if err != nil {
+		log.Printf("Error - Bind - Failed NewUser. Response: %+v, Err: %+v", response, err)
+		return returnObject, err
+	}
+
+	// fill out response
+	returnObject.IsAsync = true
+	returnObject.OperationData = OperationBind ///TODO handle in LastOperation
+
 	// TODO
-	// instanceID32 := strings.Replace(instanceID, "-", "", -1)
+	// TODO - per spec, shouldn't return this when async and 202 Accepted is returned, but oh well! (for now)
+	// returnObject.Credentials = {
+	// 	user: response.Username,
+	// 	pass: request.Password,
+	// 	uri: ""
+	// }
 
-	b := brokerapi.Binding{}
-
-	return b, nil
+	return returnObject, nil
 }
 
-// GetBinding - MongoDB Atlas Broker
+// GetBinding - MongoDB Atlas Broker -- TODO
 func (a AtlasBroker) GetBinding(ctx context.Context, instanceID, bindingID string) (brokerapi.GetBindingSpec, error) {
-	return brokerapi.GetBindingSpec{}, nil
+	returnObject := brokerapi.GetBindingSpec{}
+
+	// TODO
+
+	return returnObject, nil
 }
+
+// GET localhost:8080/v2/service_instances/abc123abc123abc123/service_bindings/bbbbbbbb/last_operation?service_id=atlas&plan_id=aws_dev&operation=bind
 
 // LastBindingOperation - MongoDB Atlas Broker
 func (a AtlasBroker) LastBindingOperation(ctx context.Context, instanceID, bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
-	return brokerapi.LastOperation{}, nil
+
+	// no state associated with a user, so as long as we get the user back it succeeded.
+	// do need to check for weird err msgs...
+	// is this call sync? TODO Check
+
+	instanceID32 := strings.Replace(instanceID, "-", "", -1)
+	bindingID32 := strings.Replace(bindingID, "-", "", -1)
+	lastOperationState := brokerapi.LastOperationState(brokerapi.Failed)
+	returnObject := brokerapi.LastOperation{}
+
+	response, err := GetUser(instanceID32, bindingID32)
+	if err != nil {
+		log.Printf("Error - LastBindingOperation - Failed GetUser. Response: %+v, Err: %+v", response, err)
+		// TODO -- take a closer looks at the error messages to see if the user is in progress maybe
+	} else {
+		switch details.OperationData {
+		case OperationBind:
+			if response.Username == bindingID32 {
+				lastOperationState = brokerapi.Succeeded
+			} else {
+				lastOperationState = brokerapi.Failed // how to tell if failed?
+			}
+		case OperationUnbind:
+			if response.Username == bindingID32 {
+				lastOperationState = brokerapi.InProgress
+			} else {
+				lastOperationState = brokerapi.Succeeded
+			}
+		default:
+			log.Printf("LastBindingOperation OperationData Unknown %+v", details.OperationData)
+			// lastOperationState = brokerapi.Failed
+		}
+	}
+
+	returnObject.State = lastOperationState
+	returnObject.Description = "Atlas Responded with User: " + response.Username
+	log.Printf("\nLastBindingOperation (details): %+v\nLastBindingOperation (response): %+v\nLastBindingOperation (returnObject): %+v\n", details, response, returnObject)
+	return returnObject, nil
 }
 
-// Unbind - MongoDB Atlas Broker ---- TODO
+// Unbind - MongoDB Atlas Broker
 func (a AtlasBroker) Unbind(ctx context.Context, instanceID, bindingID string, details brokerapi.UnbindDetails, asyncAllowed bool) (brokerapi.UnbindSpec, error) {
-	return brokerapi.UnbindSpec{}, nil
-}
 
-// Update - MongoDB Atlas Broker --- TODO
-func (a AtlasBroker) Update(ctx context.Context, instanceID string, details brokerapi.UpdateDetails, asyncAllowed bool) (brokerapi.UpdateServiceSpec, error) {
-	return brokerapi.UpdateServiceSpec{}, nil
+	returnObject := brokerapi.UnbindSpec{}
+	instanceID32 := strings.Replace(instanceID, "-", "", -1)
+	bindingID32 := strings.Replace(bindingID, "-", "", -1)
+
+	_, err := DeleteUser(instanceID32, bindingID32)
+	if err != nil {
+		log.Printf("Error - Unbind - Failed DeleteUser. Err: %+v", err)
+		return returnObject, err
+	}
+	returnObject.IsAsync = true
+	returnObject.OperationData = OperationUnbind
+	return returnObject, nil
+
 }
 
 // func (atlasServiceBroker *AtlasServiceBroker) Bind(instanceID, bindingID string, details
