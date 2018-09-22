@@ -41,6 +41,12 @@ const (
 	UserRoleName      = "readWriteAnyDatabase"
 )
 
+type atlasCredentials struct {
+	username string
+	password string
+	url      string
+}
+
 // AutoScaling - Provision Setting
 type AutoScaling struct {
 	DiskGBEnabled bool `json:"diskGBEnabled"`
@@ -385,14 +391,3 @@ func DeleteUser(instanceID string, bindingID string) (UnbindResponse, error) {
 	}
 	return UnbindResponse{}, err
 }
-
-//
-//  --- TODO ---
-// 	bindings, _ := repo.instanceBindings[instanceID]
-// 	found := false
-// 	for _, binding := range bindings {
-// 		if binding != bindingID {
-// 			newInstanceBindings = append(newInstanceBindings, binding)
-// 		} else {
-// 			found = true
-// 	repo.instanceBindings[instanceID] = newInstanceBindings

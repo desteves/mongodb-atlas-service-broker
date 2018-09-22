@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"mongodb-atlas-service-broker/broker/credhub"
 	"strings"
 
 	"github.com/pivotal-cf/brokerapi"
@@ -199,8 +200,13 @@ func (a AtlasBroker) Bind(ctx context.Context, instanceID, bindingID string, det
 	request.Roles = []Roles{role}
 
 	// TODO - Generate and fetch from CredHub
+	credhubPass, err := credhub.GenPassFromCredhub(instanceID32, bindingID32)
+	if err != nil {
+		log.Printf("Error - Bind - Failed genPassFromCredhub. Err: %+v", err)
+		return returnObject, err
+	}
 	request.Username = bindingID32
-	request.Password = instanceID32
+	request.Password = string(credhubPass.Value)
 
 	log.Printf("\nBind (request): %+v", request)
 
@@ -232,9 +238,21 @@ func (a AtlasBroker) Bind(ctx context.Context, instanceID, bindingID string, det
 
 // GetBinding - MongoDB Atlas Broker -- TODO
 func (a AtlasBroker) GetBinding(ctx context.Context, instanceID, bindingID string) (brokerapi.GetBindingSpec, error) {
+	instanceID32 := strings.Replace(instanceID, "-", "", -1)
+	bindingID32 := strings.Replace(bindingID, "-", "", -1)
 	returnObject := brokerapi.GetBindingSpec{}
 
-	// TODO
+	credhubPass, err := credhub.GetPassFromCredhub(instanceID32, bindingID32)
+	if err != nil {
+		log.Printf("Error - Bind - Failed genPassFromCredhub. Err: %+v", err)
+		return returnObject, err
+	}
+
+	returnObject.Credentials = atlasCredentials{
+		username: bindingID32,
+		password: string(credhubPass.Value),
+		// diana for you ! url:
+	}
 
 	return returnObject, nil
 }
@@ -295,6 +313,13 @@ func (a AtlasBroker) Unbind(ctx context.Context, instanceID, bindingID string, d
 		log.Printf("Error - Unbind - Failed DeleteUser. Err: %+v", err)
 		return returnObject, err
 	}
+
+	err = credhub.DeletePassFromCredhub(instanceID32, bindingID32)
+	if err != nil {
+		log.Printf("Error - Unbind - Failed DeletePassFromCredhub to delete user from credhub. Err: %+v", err)
+		return returnObject, err
+	}
+
 	returnObject.IsAsync = true
 	returnObject.OperationData = OperationUnbind
 	return returnObject, nil
