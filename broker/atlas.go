@@ -42,9 +42,9 @@ const (
 )
 
 type atlasCredentials struct {
-	username string
-	password string
-	url      string
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Url      string `json:"url"`
 }
 
 // AutoScaling - Provision Setting

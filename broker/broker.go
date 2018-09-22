@@ -249,11 +249,10 @@ func (a AtlasBroker) GetBinding(ctx context.Context, instanceID, bindingID strin
 	}
 
 	returnObject.Credentials = atlasCredentials{
-		username: bindingID32,
-		password: string(credhubPass.Value),
+		Username: bindingID32,
+		Password: string(credhubPass.Value),
 		// diana for you ! url:
 	}
-
 	return returnObject, nil
 }
 
