@@ -6,22 +6,12 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
-// TODO -- Move this to CredHub/Env vars, don't leave this exposed here
-// #shame
-// /giphy shame
-// :shame:
-
-// cost - move to CredHUB
+// const
 const (
-	Host  = "https://cloud.mongodb.com"
-	URI   = "/api/atlas/v1.0"
-	User  = "diana.esteves"
-	Pass  = "787b61f2-9476-4ed5-963c-5570e13720bc"
-	Group = "5b75e84b3b34b9469d01b20e"
-
 	OperationDeprovision = "deprovision"
 	OperationProvision   = "provision"
 	OperationBind        = "bind"
@@ -44,7 +34,7 @@ const (
 type atlasCredentials struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
-	Url      string `json:"url"`
+	URI      string `json:"url"`
 }
 
 // AutoScaling - Provision Setting
@@ -154,6 +144,8 @@ type LastBindingOperationResponse struct {
 	//TODO may have to add fields to handle error json response -- CHECK
 }
 
+// TODO see if it contains the srv entry
+
 //LastOperationResponse struct
 type LastOperationResponse struct {
 	AutoScaling              AutoScaling      `json:"autoScaling,omitempty"`
@@ -206,8 +198,8 @@ type BindResponse struct {
 
 // Does the digest handshake and assembles the actuall http call to make -- TODO move to client
 func setupRequest(argMethod string, argURI string, argPostBody []byte) (*http.Request, error) {
-	uri := URI + argURI
-	url := Host + uri
+	uri := os.Getenv("ATLAS_URI") + argURI
+	url := os.Getenv("ATLAS_HOST") + uri
 	emptyRequest := http.Request{}
 	req, err := http.NewRequest(argMethod, url, nil)
 	req.Header.Set("Content-Type", "application/json")
@@ -221,8 +213,8 @@ func setupRequest(argMethod string, argURI string, argPostBody []byte) (*http.Re
 	digestParts := digestParts(resp)
 	digestParts["uri"] = uri
 	digestParts["method"] = argMethod
-	digestParts["username"] = User
-	digestParts["password"] = Pass
+	digestParts["username"] = os.Getenv("ATLAS_USER")
+	digestParts["password"] = os.Getenv("ATLAS_PASS")
 	if argPostBody == nil {
 		req, err = http.NewRequest(argMethod, url, nil)
 	} else {
@@ -302,7 +294,7 @@ func DoDELETE(argURI string) ([]byte, error) {
 
 //NewCluster in MongoDB Atlas
 func NewCluster(argPostBody []byte) (ProvisionResponse, error) {
-	uri := "/groups/" + Group + "/clusters"
+	uri := "/groups/" + os.Getenv("ATLAS_GROUP") + "/clusters"
 	returnObject := ProvisionResponse{}
 	body, err := DoPOST(uri, argPostBody)
 	if err != nil {
@@ -320,7 +312,7 @@ func NewCluster(argPostBody []byte) (ProvisionResponse, error) {
 //NewUser in MongoDB Atlas
 func NewUser(argPostBody []byte) (BindResponse, error) {
 	// https://docs.atlas.mongodb.com/reference/api/database-users-create-a-user/
-	uri := "/groups/" + Group + "/databaseUsers"
+	uri := "/groups/" + os.Getenv("ATLAS_GROUP") + "/databaseUsers"
 	returnObject := BindResponse{}
 	body, err := DoPOST(uri, argPostBody)
 	if err != nil {
@@ -338,7 +330,8 @@ func NewUser(argPostBody []byte) (BindResponse, error) {
 //GetCluster in MongoDB Atlas
 func GetCluster(instanceID string) (LastOperationResponse, error) {
 	returnObject := LastOperationResponse{}
-	uri := "/groups/" + Group + "/clusters/" + instanceID
+	// https://docs.atlas.mongodb.com/reference/api/clusters-get-one/
+	uri := "/groups/" + os.Getenv("ATLAS_GROUP") + "/clusters/" + instanceID
 	body, err := DoGET(uri)
 	if err != nil {
 		log.Printf("Error - GetCluster - Failed DoGET call.  Body: %+v, Err: %+v", body, err)
@@ -356,7 +349,7 @@ func GetCluster(instanceID string) (LastOperationResponse, error) {
 func GetUser(instanceID string, bindingID string) (LastBindingOperationResponse, error) {
 	returnObject := LastBindingOperationResponse{}
 	//https://docs.atlas.mongodb.com/reference/api/database-users-get-single-user/
-	uri := "/groups/" + Group + "/databaseUsers/admin/" + bindingID
+	uri := "/groups/" + os.Getenv("ATLAS_GROUP") + "/databaseUsers/admin/" + bindingID
 	body, err := DoGET(uri)
 	if err != nil {
 		log.Printf("Error - GetUser - Failed DoGET call.  Body: %+v, Err: %+v", body, err)
@@ -372,7 +365,7 @@ func GetUser(instanceID string, bindingID string) (LastBindingOperationResponse,
 
 //TerminateCluster in MongoDB Atlas
 func TerminateCluster(instanceID string) (DeprovisionResponse, error) {
-	uri := "/groups/" + Group + "/clusters/" + instanceID
+	uri := "/groups/" + os.Getenv("ATLAS_GROUP") + "/clusters/" + instanceID
 	_, err := DoDELETE(uri)
 	if err != nil {
 		log.Printf("Error - TerminateCluster - Failed DoDELETE call.  Err: %+v", err)
@@ -384,7 +377,7 @@ func TerminateCluster(instanceID string) (DeprovisionResponse, error) {
 func DeleteUser(instanceID string, bindingID string) (UnbindResponse, error) {
 	//https://docs.atlas.mongodb.com/reference/api/database-users-delete-a-user/
 	//DELETE /api/atlas/v1.0/groups/{GROUP-ID}/databaseUsers/admin/{USERNAME}
-	uri := "/groups/" + Group + "/databaseUsers/admin/" + bindingID
+	uri := "/groups/" + os.Getenv("ATLAS_GROUP") + "/databaseUsers/admin/" + bindingID
 	_, err := DoDELETE(uri)
 	if err != nil {
 		log.Printf("Error - DeleteUser - Failed DoDELETE call.  Err: %+v", err)

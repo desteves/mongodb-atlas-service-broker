@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"mongodb-atlas-service-broker/broker/credhub"
+	"os"
 	"strings"
 
+	"github.com/desteves/mongodb-atlas-service-broker/broker/credhub"
 	"github.com/pivotal-cf/brokerapi"
 )
 
@@ -69,7 +70,7 @@ func (a AtlasBroker) Provision(ctx context.Context, instanceID string, details b
 
 	if details.PlanID == custom {
 		// TODO
-		return returnObject, fmt.Errorf("life sucks")
+		return returnObject, fmt.Errorf("todo")
 	}
 
 	// defaults
@@ -94,7 +95,7 @@ func (a AtlasBroker) Provision(ctx context.Context, instanceID string, details b
 		//TODO
 	default:
 		// TODO
-		return returnObject, fmt.Errorf("life sucks")
+		return returnObject, fmt.Errorf("todo")
 	}
 
 	provisionReq.ProviderSettings = provider
@@ -112,7 +113,7 @@ func (a AtlasBroker) Provision(ctx context.Context, instanceID string, details b
 
 	returnObject.IsAsync = true
 	returnObject.OperationData = OperationProvision
-	returnObject.DashboardURL = Host + "/v2/" + Group + "#clusters/detail/" + instanceID32
+	returnObject.DashboardURL = os.Getenv("ATLAS_HOST") + "/v2/" + os.Getenv("ATLAS_GROUP") + "#clusters/detail/" + instanceID32
 	return returnObject, err
 }
 
@@ -195,7 +196,7 @@ func (a AtlasBroker) Bind(ctx context.Context, instanceID, bindingID string, det
 	request := BindRequest{}
 
 	request.DatabaseName = UserDatabaseStore
-	request.GroupID = Group
+	request.GroupID = os.Getenv("ATLAS_GROUP")
 	role := Roles{DatabaseName: UserRoleDatabase, RoleName: UserRoleName}
 	request.Roles = []Roles{role}
 
@@ -223,20 +224,11 @@ func (a AtlasBroker) Bind(ctx context.Context, instanceID, bindingID string, det
 
 	// fill out response
 	returnObject.IsAsync = true
-	returnObject.OperationData = OperationBind ///TODO handle in LastOperation
-
-	// TODO
-	// TODO - per spec, shouldn't return this when async and 202 Accepted is returned, but oh well! (for now)
-	// returnObject.Credentials = {
-	// 	user: response.Username,
-	// 	pass: request.Password,
-	// 	uri: ""
-	// }
-
+	returnObject.OperationData = OperationBind
 	return returnObject, nil
 }
 
-// GetBinding - MongoDB Atlas Broker -- TODO
+// GetBinding - MongoDB Atlas Broker
 func (a AtlasBroker) GetBinding(ctx context.Context, instanceID, bindingID string) (brokerapi.GetBindingSpec, error) {
 	instanceID32 := strings.Replace(instanceID, "-", "", -1)
 	bindingID32 := strings.Replace(bindingID, "-", "", -1)
@@ -244,14 +236,20 @@ func (a AtlasBroker) GetBinding(ctx context.Context, instanceID, bindingID strin
 
 	credhubPass, err := credhub.GetPassFromCredhub(instanceID32, bindingID32)
 	if err != nil {
-		log.Printf("Error - Bind - Failed genPassFromCredhub. Err: %+v", err)
+		log.Printf("Error - GetBinding - Failed genPassFromCredhub. Err: %+v", err)
+		return returnObject, err
+	}
+
+	cluster, err := GetCluster(instanceID32)
+	if err != nil {
+		log.Printf("Error - GetBinding - Failed GetCluster. Err: %+v", err)
 		return returnObject, err
 	}
 
 	returnObject.Credentials = atlasCredentials{
 		Username: bindingID32,
 		Password: string(credhubPass.Value),
-		// diana for you ! url:
+		URI:      cluster.MongoURIWithOptions,
 	}
 	return returnObject, nil
 }
@@ -324,11 +322,3 @@ func (a AtlasBroker) Unbind(ctx context.Context, instanceID, bindingID string, d
 	return returnObject, nil
 
 }
-
-// func (atlasServiceBroker *AtlasServiceBroker) Bind(instanceID, bindingID string, details
-// 			credentialsMap := map[string]interface{}{
-// 				"host":     instanceCredentials.Host,
-// 				"port":     instanceCredentials.Port,
-// 				"password": instanceCredentials.Password,
-// 			binding.Credentials = credentialsMap
-// 			return binding, nil
