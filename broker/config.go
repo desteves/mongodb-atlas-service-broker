@@ -114,11 +114,11 @@ func checkPathExists(path string, description string) error {
 }
 
 func checkDedicatedNodesAreIPs(dedicatedNodes []string) error {
-	valid_ip_field := "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
-	ip_regex := fmt.Sprintf("^(%[1]s\\.){3}%[1]s$", valid_ip_field)
+	validIPField := "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
+	ipRegex := fmt.Sprintf("^(%[1]s\\.){3}%[1]s$", validIPField)
 
 	for _, nodeAddress := range dedicatedNodes {
-		match, _ := regexp.MatchString(ip_regex, strings.TrimSpace(nodeAddress))
+		match, _ := regexp.MatchString(ipRegex, strings.TrimSpace(nodeAddress))
 		if !match {
 			return errors.New("The broker only supports IP addresses for dedicated nodes")
 		}

@@ -63,13 +63,10 @@ func (a AtlasBroker) Services(ctx context.Context) ([]brokerapi.Service, error) 
 func (a AtlasBroker) Provision(ctx context.Context, instanceID string, details brokerapi.ProvisionDetails, asyncAllowed bool) (brokerapi.ProvisionedServiceSpec, error) {
 
 	instanceID32 := strings.Replace(instanceID, "-", "", -1)
-
 	returnObject := brokerapi.ProvisionedServiceSpec{}
 	provider := ProviderSettings{}
-	_ = ProvisionResponse{}
 
 	if details.PlanID == custom {
-		//Just send it along.....
 		// TODO
 		return returnObject, fmt.Errorf("life sucks")
 	}
@@ -93,13 +90,8 @@ func (a AtlasBroker) Provision(ctx context.Context, instanceID string, details b
 		provider.DiskIOPS = 300
 		provider.EncryptEBSVolume = false
 	case gcpDev:
-		//TODO - test this!!!
-		provisionReq.ProviderSettings.ProviderName = "GCP"
-		provider.RegionName = "EASTERN_US"
-		provider.InstanceSizeName = "M10"
-		provider.DiskIOPS = 100
+		//TODO
 	default:
-		// error
 		// TODO
 		return returnObject, fmt.Errorf("life sucks")
 	}
@@ -107,45 +99,86 @@ func (a AtlasBroker) Provision(ctx context.Context, instanceID string, details b
 	provisionReq.ProviderSettings = provider
 	json, err := json.Marshal(provisionReq)
 	if err != nil {
-		log.Panic(err)
+		log.Printf("Error - Provision - Failed Marshal. JSON: %+v, Err: %+v", json, err)
+		return brokerapi.ProvisionedServiceSpec{}, err
 	}
 
 	_, err = NewCluster(json)
 	if err != nil {
-		returnObject.IsAsync = true
-		returnObject.OperationData = ""
-		returnObject.DashboardURL = "https://cloud.mongodb.com/api/atlas/v1.0/groups/" + Group + "/clusters/" + instanceID32
+		log.Printf("Error - Provision - Failed NewCluster. Err: %+v", err)
+		return returnObject, err
 	}
 
+	returnObject.IsAsync = true
+	returnObject.OperationData = OperationProvision
+	returnObject.DashboardURL = Host + "/v2/groups/" + Group + "#clusters/detail/" + instanceID32
 	return returnObject, err
 }
 
+// DELETE localhost:8080/v2/service_instances/instanceID32?service_id=atlas&plan_id=aws_dev
+
+// Deprovision - MongoDB Atlas Broker
+func (a AtlasBroker) Deprovision(ctx context.Context, instanceID string, details brokerapi.DeprovisionDetails, asyncAllowed bool) (brokerapi.DeprovisionServiceSpec, error) {
+	returnObject := brokerapi.DeprovisionServiceSpec{}
+	instanceID32 := strings.Replace(instanceID, "-", "", -1)
+	_, err := TerminateCluster(instanceID32)
+	if err != nil {
+		log.Printf("Error - Deprovision - Failed TerminateCluster. Err: %+v", err)
+		return returnObject, err
+	}
+	returnObject.IsAsync = true
+	returnObject.OperationData = OperationDeprovision
+	return returnObject, err
+}
+
+// GET localhost:8080/v2/service_instances/abc123abc123abc123/last_operation?service_id=atlas&plan_id=aws_dev&operation=deprovision
+
 // LastOperation - MongoDB Atlas Broker
-// If the broker provisions asynchronously, the Cloud Controller will poll this endpoint
-// for the status of the provisioning operation.
 func (a AtlasBroker) LastOperation(ctx context.Context, instanceID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
+
 	instanceID32 := strings.Replace(instanceID, "-", "", -1)
 	returnObject := brokerapi.LastOperation{}
-	response := LastOperationResponse{}
 	response, err := GetCluster(instanceID32)
-	lastOperationState := brokerapi.Failed
 	if err != nil {
-		returnObject.Description = response.StateName
+		log.Printf("Error - LastOperation - Failed GetCluster. Response: %+v, Err: %+v", response, err)
+		return returnObject, err
+	}
+
+	lastOperationState := brokerapi.LastOperationState(brokerapi.Failed)
+	switch details.OperationData {
+	case OperationDeprovision:
+		if response.StateName == StateDELETED || response.ErrorCode == ErrorCode404 {
+			lastOperationState = brokerapi.Succeeded
+		} else if response.StateName == StateDELETING {
+			lastOperationState = brokerapi.InProgress
+		} else {
+			lastOperationState = brokerapi.Failed
+		}
+	case OperationProvision:
 		switch response.StateName {
 		case StateIDLE:
 			lastOperationState = brokerapi.Succeeded
-		default:
+		case StateCREATING:
 			lastOperationState = brokerapi.InProgress
+		default:
+			lastOperationState = brokerapi.Failed
 		}
+	default:
+		log.Printf("LastOperation OperationData Unknown %+v", details.OperationData)
+		lastOperationState = brokerapi.Failed
 	}
+
 	returnObject.State = lastOperationState
-	return returnObject, err
+	returnObject.Description = "Atlas Cluster State is " + response.StateName + response.ErrorCode
+	log.Printf("\nLastOperation (details): %+v\nLastOperation (response): %+v\nLastOperation (returnObject): %+v\n", details, response, returnObject)
+	return returnObject, nil
 }
 
 // Bind - MongoDB Atlas Broker
 func (a AtlasBroker) Bind(ctx context.Context, instanceID, bindingID string, details brokerapi.BindDetails, asyncAllowed bool) (brokerapi.Binding, error) {
 
-	instanceID32 := strings.Replace(instanceID, "-", "", -1)
+	// TODO
+	// instanceID32 := strings.Replace(instanceID, "-", "", -1)
 
 	b := brokerapi.Binding{}
 
@@ -170,14 +203,6 @@ func (a AtlasBroker) Unbind(ctx context.Context, instanceID, bindingID string, d
 // Update - MongoDB Atlas Broker --- TODO
 func (a AtlasBroker) Update(ctx context.Context, instanceID string, details brokerapi.UpdateDetails, asyncAllowed bool) (brokerapi.UpdateServiceSpec, error) {
 	return brokerapi.UpdateServiceSpec{}, nil
-}
-
-// Deprovision - MongoDB Atlas Broker -- TODO
-func (a AtlasBroker) Deprovision(ctx context.Context, instanceID string, details brokerapi.DeprovisionDetails, asyncAllowed bool) (brokerapi.DeprovisionServiceSpec, error) {
-
-	instanceID32 := strings.Replace(instanceID, "-", "", -1)
-
-	return brokerapi.DeprovisionServiceSpec{}, nil
 }
 
 // func (atlasServiceBroker *AtlasServiceBroker) Bind(instanceID, bindingID string, details

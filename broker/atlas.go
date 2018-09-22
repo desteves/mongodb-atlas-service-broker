@@ -3,14 +3,18 @@ package broker
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
 )
 
-// TODO -- Move this to CredHub/Env vars, don't leave this exposed here #shame
+// TODO -- Move this to CredHub/Env vars, don't leave this exposed here
+// #shame
+// /giphy shame
+// :shame:
+
+// cost - move to CredHUB
 const (
 	Host  = "https://cloud.mongodb.com"
 	URI   = "/api/atlas/v1.0"
@@ -18,12 +22,17 @@ const (
 	Pass  = "787b61f2-9476-4ed5-963c-5570e13720bc"
 	Group = "5b75e84b3b34b9469d01b20e"
 
+	OperationDeprovision = "deprovision"
+	OperationProvision   = "provision"
+
 	StateIDLE      = "IDLE"
 	StateCREATING  = "CREATING"
 	StateUPDATING  = "UPDATING"
 	StateDELETING  = "DELETING"
 	StateDELETED   = "DELETED"
 	StateREPAIRING = "REPAIRING"
+
+	ErrorCode404 = "CLUSTER_NOT_FOUND"
 )
 
 // AutoScaling - Provision Setting
@@ -64,8 +73,10 @@ type Links struct {
 	Rel  string `json:"rel"`
 }
 
+// Horrible to have the region as the field name, ughr!!!!
+// Skipping the marshaling of this sub-doc altogether!
 // ReplicationSpec       struct {
-// 	USEAST1 struct { // Horrible to have the region as the field name, ughr!!!! skipping the marshaling of this sub-doc altogether
+// 	USEAST1 struct { /// shoot me please
 // 		ElectableNodes int `json:"electableNodes"`
 // 		Priority       int `json:"priority"`
 // 		ReadOnlyNodes  int `json:"readOnlyNodes"`
@@ -74,76 +85,69 @@ type Links struct {
 
 //ProvisionResponse struct
 type ProvisionResponse struct {
-	AutoScaling              AutoScaling      `json:"autoScaling"`
-	BackupEnabled            bool             `json:"backupEnabled"`
-	BiConnector              BiConnector      `json:"biConnector"`
-	ClusterType              string           `json:"clusterType"`
-	DiskSizeGB               float32          `json:"diskSizeGB"`
-	EncryptionAtRestProvider string           `json:"encryptionAtRestProvider"`
-	GroupID                  string           `json:"groupId"`
-	ID                       string           `json:"id"`
-	Links                    []Links          `json:"links"`
-	MongoDBMajorVersion      string           `json:"mongoDBMajorVersion"`
-	MongoDBVersion           string           `json:"mongoDBVersion"`
-	MongoURI                 string           `json:"mongoURI"`
-	MongoURIUpdated          time.Time        `json:"mongoURIUpdated"`
-	MongoURIWithOptions      string           `json:"mongoURIWithOptions"`
-	Name                     string           `json:"name"`
-	NumShards                int              `json:"numShards"`
-	Paused                   bool             `json:"paused"`
-	ProviderBackupEnabled    bool             `json:"providerBackupEnabled"`
-	ProviderSettings         ProviderSettings `json:"providerSettings"`
-	ReplicationFactor        int              `json:"replicationFactor"`
-	StateName                string           `json:"stateName"`
+	AutoScaling              AutoScaling      `json:"autoScaling,omitempty"`
+	BackupEnabled            bool             `json:"backupEnabled,omitempty"`
+	BiConnector              BiConnector      `json:"biConnector,omitempty"`
+	ClusterType              string           `json:"clusterType,omitempty"`
+	DiskSizeGB               float32          `json:"diskSizeGB,omitempty"`
+	EncryptionAtRestProvider string           `json:"encryptionAtRestProvider,omitempty"`
+	GroupID                  string           `json:"groupId,omitempty"`
+	ID                       string           `json:"id,omitempty"`
+	Links                    []Links          `json:"links,omitempty"`
+	MongoDBMajorVersion      string           `json:"mongoDBMajorVersion,omitempty"`
+	MongoDBVersion           string           `json:"mongoDBVersion,omitempty"`
+	MongoURI                 string           `json:"mongoURI,omitempty"`
+	MongoURIUpdated          time.Time        `json:"mongoURIUpdated,omitempty"`
+	MongoURIWithOptions      string           `json:"mongoURIWithOptions,omitempty"`
+	Name                     string           `json:"name,omitempty"`
+	NumShards                int              `json:"numShards,omitempty"`
+	Paused                   bool             `json:"paused,omitempty"`
+	ProviderBackupEnabled    bool             `json:"providerBackupEnabled,omitempty"`
+	ProviderSettings         ProviderSettings `json:"providerSettings,omitempty"`
+	ReplicationFactor        int              `json:"replicationFactor,omitempty"`
+	StateName                string           `json:"stateName,omitempty"`
+
+	// deal with error json response
+	Detail     string   `json:"detail,omitempty"`
+	Error      int      `json:"error,omitempty"`
+	ErrorCode  string   `json:"errorCode"`
+	Parameters []string `json:"parameters,omitempty"`
+	Reason     string   `json:"reason,omitempty"`
 }
 
-type DeprovisionResponse struct{
-
+//DeprovisionResponse struct
+type DeprovisionResponse struct {
 }
+
 //LastOperationResponse struct
 type LastOperationResponse struct {
-	AutoScaling              AutoScaling      `json:"autoScaling"`
-	BackupEnabled            bool             `json:"backupEnabled"`
-	BiConnector              BiConnector      `json:"biConnector"`
-	ClusterType              string           `json:"clusterType"`
-	DiskSizeGB               int              `json:"diskSizeGB"`
-	EncryptionAtRestProvider string           `json:"encryptionAtRestProvider"`
-	GroupID                  string           `json:"groupId"`
-	MongoDBVersion           string           `json:"mongoDBVersion"`
-	MongoURI                 string           `json:"mongoURI"`
-	MongoURIUpdated          string           `json:"mongoURIUpdated"`
-	MongoURIWithOptions      string           `json:"mongoURIWithOptions"`
-	Name                     string           `json:"name"`
-	NumShards                int              `json:"numShards"`
-	Paused                   bool             `json:"paused"`
-	ProviderSettings         ProviderSettings `json:"providerSettings"`
-	ReplicationFactor        int              `json:"replicationFactor"`
+	AutoScaling              AutoScaling      `json:"autoScaling,omitempty"`
+	BackupEnabled            bool             `json:"backupEnabled,omitempty"`
+	BiConnector              BiConnector      `json:"biConnector,omitempty"`
+	ClusterType              string           `json:"clusterType,omitempty"`
+	DiskSizeGB               float32          `json:"diskSizeGB,omitempty"`
+	EncryptionAtRestProvider string           `json:"encryptionAtRestProvider,omitempty"`
+	GroupID                  string           `json:"groupId,omitempty"`
+	MongoDBVersion           string           `json:"mongoDBVersion,omitempty"`
+	MongoURI                 string           `json:"mongoURI,omitempty,omitempty"`
+	MongoURIUpdated          string           `json:"mongoURIUpdated,omitempty,omitempty"`
+	MongoURIWithOptions      string           `json:"mongoURIWithOptions,omitempty"`
+	Name                     string           `json:"name,omitempty"`
+	NumShards                int              `json:"numShards,omitempty"`
+	Paused                   bool             `json:"paused,omitempty"`
+	ProviderSettings         ProviderSettings `json:"providerSetting,omitemptys"`
+	ReplicationFactor        int              `json:"replicationFactor,omitempty"`
 	StateName                string           `json:"stateName"`
+
+	// deal with error json response
+	Detail     string   `json:"detail,omitempty"`
+	Error      int      `json:"error,omitempty"`
+	ErrorCode  string   `json:"errorCode"`
+	Parameters []string `json:"parameters,omitempty"`
+	Reason     string   `json:"reason,omitempty"`
 }
 
-//DoPOST using the MongoDB Atlas REST API
-func DoPOST(argURI string, argPostBody []byte) ([]byte, error) {
-	req, err := setupRequest(http.MethodPost, argURI, argPostBody)
-	if err != nil {
-		log.Printf("Failed setting up POST request...%+v", req)
-		return []byte{}, err
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Printf("Failed setting up POST client.Do(req)...%+v", resp)
-		return []byte{}, err
-	}
-	defer resp.Body.Close()
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-
-		return []byte{}, err
-	}
-	return data, nil
-}
-
+// Does the digest handshake and assembles the actuall http call to make -- TODO move to client
 func setupRequest(argMethod string, argURI string, argPostBody []byte) (*http.Request, error) {
 	uri := URI + argURI
 	url := Host + uri
@@ -153,6 +157,7 @@ func setupRequest(argMethod string, argURI string, argPostBody []byte) (*http.Re
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Printf("Error - setupRequest - Failed http response. Resp: %+v, Err: %+v", resp, err)
 		return &emptyRequest, err
 	}
 	defer resp.Body.Close()
@@ -161,52 +166,78 @@ func setupRequest(argMethod string, argURI string, argPostBody []byte) (*http.Re
 	digestParts["method"] = argMethod
 	digestParts["username"] = User
 	digestParts["password"] = Pass
-	req, err = http.NewRequest(argMethod, url, bytes.NewBuffer(argPostBody))
+	if argPostBody == nil {
+		req, err = http.NewRequest(argMethod, url, nil)
+	} else {
+		req, err = http.NewRequest(argMethod, url, bytes.NewBuffer(argPostBody))
+	}
 	req.Header.Set("Authorization", getDigestAuthrization(digestParts))
 	req.Header.Set("Content-Type", "application/json")
 	return req, nil
 
 }
 
-//DoGET using the MongoDB Atlas REST API -- TODO TEST
-func DoGET(argURI string) ([]byte, error) {
-	req, err := setupRequest(http.MethodGet, argURI, []byte{})
+//DoPOST using the MongoDB Atlas REST API -- TODO move to client
+func DoPOST(argURI string, argPostBody []byte) ([]byte, error) {
+	req, err := setupRequest(http.MethodPost, argURI, argPostBody)
 	if err != nil {
-		log.Printf("Failed setting up GET request...%+v", req)
+		log.Printf("Error - DoPOST - Failed setupRequest call. Req: %+v, Err: %+v", req, err)
 		return []byte{}, err
 	}
-
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("Failed setting up GET client.Do(req)...%+v", resp)
+		log.Printf("Error - DoPOST - Failed http response. Resp: %+v, Err: %+v", resp, err)
 		return []byte{}, err
 	}
 	defer resp.Body.Close()
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		log.Printf("Error - DoPOST - Failed parsing body response. Data: %+v, Err: %+v", data, err)
 		return []byte{}, err
 	}
 	return data, nil
 }
 
-//DoDELETE using the MongoDB Atlas REST API
-func DoDELETE(argURI string, argPostBody []byte) ([]byte, error) {
-	req, err := setupRequest(http.MethodDelete, argURI, argPostBody)
+//DoGET using the MongoDB Atlas REST API -- TODO move to client
+func DoGET(argURI string) ([]byte, error) {
+	req, err := setupRequest(http.MethodGet, argURI, []byte{})
 	if err != nil {
-		log.Printf("Failed setting up DELETE request...%+v", req)
+		log.Printf("Error - DoGET - Failed setupRequest call. Req: %+v, Err: %+v", req, err)
 		return []byte{}, err
 	}
-
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("Failed setting up DELETE client.Do(req)...%+v", resp)
+		log.Printf("Error - DoGET - Failed http response. Resp: %+v, Err: %+v", resp, err)
 		return []byte{}, err
 	}
 	defer resp.Body.Close()
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		log.Printf("Error - DoGET - Failed parsing body response. Data: %+v, Err: %+v", data, err)
+		return []byte{}, err
+	}
+	return data, nil
+}
+
+//DoDELETE using the MongoDB Atlas REST API -- TODO move to client
+func DoDELETE(argURI string) ([]byte, error) {
+	req, err := setupRequest(http.MethodDelete, argURI, nil)
+	if err != nil {
+		log.Printf("Error - DoDELETE - Failed setupRequest call. Req: %+v, Err: %+v", req, err)
+		return []byte{}, err
+	}
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("Error - DoDELETE - Failed http response. Resp: %+v, Err: %+v", resp, err)
+		return []byte{}, err
+	}
+	defer resp.Body.Close()
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Error - DoDELETE - Failed parsing body response. Data: %+v, Err: %+v", data, err)
 		return []byte{}, err
 	}
 	return data, nil
@@ -217,85 +248,47 @@ func NewCluster(argPostBody []byte) (ProvisionResponse, error) {
 	returnObject := ProvisionResponse{}
 	uri := "/groups/" + Group + "/clusters"
 	body, err := DoPOST(uri, argPostBody)
-	fmt.Printf("Sending POST to %s...%+v", uri, string(argPostBody))
 	if err != nil {
-		fmt.Printf("Error Sending POST to %s...%+v", uri, string(argPostBody))
+		log.Printf("Error - NewCluster - Failed DoPOST call.  Body: %+v, Err: %+v", body, err)
 		return ProvisionResponse{}, err
 	}
 	err = json.Unmarshal(body, &returnObject)
 	if err != nil {
-		fmt.Printf("Error Unmarshalling NewCluster Response...%+v", string(body))
+		log.Printf("Error - NewCluster - Failed Unmarshal. ProvisionResponse: %+v, Err: %+v", returnObject, err)
 		return ProvisionResponse{}, err
 	}
-	log.Println("NewCluster body: ", string(body))
 	return returnObject, err
 }
 
-//GetCluster in MongoDB Atlas   -- TEST TODO
+//GetCluster in MongoDB Atlas
 func GetCluster(instanceID string) (LastOperationResponse, error) {
 	returnObject := LastOperationResponse{}
-	uri := "/groups/" + Group + "/clusters" + instanceID
+	uri := "/groups/" + Group + "/clusters/" + instanceID
 	body, err := DoGET(uri)
 	if err != nil {
-		fmt.Printf("Error Sending GetCluster GET to %s..", uri)
+		log.Printf("Error - GetCluster - Failed DoGET call.  Body: %+v, Err: %+v", body, err)
 		return returnObject, err
 	}
 	err = json.Unmarshal(body, &returnObject)
 	if err != nil {
-		fmt.Printf("Error Unmarshalling GetCluster Response...%+v", string(body))
-		return returnObject, err
+		log.Printf("Error - GetCluster - Failed Unmarshal. LastOperationResponse: %+v, Err: %+v", returnObject, err)
+		return LastOperationResponse{}, err
 	}
-	log.Println("GetCluster body: ", string(body))
 	return returnObject, err
 }
 
-//TerminateCluster in MongoDB Atlas -- TEST TODO
+//TerminateCluster in MongoDB Atlas
 func TerminateCluster(instanceID string) (DeprovisionResponse, error) {
-	returnObject := DeprovisionResponse{}
 	uri := "/groups/" + Group + "/clusters/" + instanceID
-	body, err := DoDELETE(uri)
-	fmt.Printf("Sending DELETE to %s..", uri)
+	_, err := DoDELETE(uri)
 	if err != nil {
-		fmt.Printf("Error Sending DELETE to %s.", uri))
-		return DeprovisionResponse{}, err
+		log.Printf("Error - TerminateCluster - Failed DoDELETE call.  Err: %+v", err)
 	}
-	err = json.Unmarshal(body, &returnObject)
-	if err != nil {
-		return DeprovisionResponse{}, err
-	}
-	log.Println("TerminateCluster body: ", string(body))
-	return returnObject, err
+	return DeprovisionResponse{}, err
 }
 
 //
-//
-//
-//
-//
-//
-//
-
-// 	stateBytes, err := ioutil.ReadFile(repo.statefilePath)
-// 	if err != nil {
-// 		repo.logger.Error(
-// 			"failed to read statefile",
-// 			err, lager.Data{"statefilePath": repo.statefilePath},
-// 		)
-// 		return statefileContents, err
-// 	}
-
-// 	err = json.Unmarshal(stateBytes, &statefileContents)
-// 	if err != nil {
-// 		repo.logger.Error(
-// 			"failed to read statefile due to invalid JSON",
-// 			err,
-// 			lager.Data{
-// 				"statefilePath":     repo.statefilePath,
-// 				"stateFileContents": string(stateBytes),
-// 			},
-// 		)
-// 		return statefileContents, err
-
+//  --- TODO ---
 // 	bindings, _ := repo.instanceBindings[instanceID]
 // 	found := false
 // 	for _, binding := range bindings {
@@ -303,5 +296,4 @@ func TerminateCluster(instanceID string) (DeprovisionResponse, error) {
 // 			newInstanceBindings = append(newInstanceBindings, binding)
 // 		} else {
 // 			found = true
-
 // 	repo.instanceBindings[instanceID] = newInstanceBindings

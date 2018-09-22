@@ -49,30 +49,3 @@ func getDigestAuthrization(digestParts map[string]string) string {
 		d["username"], d["realm"], d["nonce"], d["uri"], cnonce, nonceCount, d["qop"], response)
 	return authorization
 }
-
-// //DoDigestAuth -- messy
-// func DoDigestAuth(argMethod string, argURL string) string {
-// 	url := Host + URI + argURL
-// 	method := argMethod
-// 	req, err := http.NewRequest(http.MethodPost, url, nil)
-// 	req.Header.Set("Content-Type", "application/json")
-// 	client := &http.Client{}
-// 	resp, err := client.Do(req)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	defer resp.Body.Close()
-// 	if resp.StatusCode != http.StatusUnauthorized {
-// 		err := fmt.Errorf("Recieved status code '%v' auth skipped", resp.StatusCode)
-// 		log.Print(err)
-// 		return ""
-// 	}
-
-// 	digestParts := digestParts(resp)
-// 	digestParts["uri"] = URI + argURL
-// 	digestParts["method"] = argMethod
-// 	digestParts["username"] = User
-// 	digestParts["password"] = Pass
-
-// 	return getDigestAuthrization(digestParts)
-// }
