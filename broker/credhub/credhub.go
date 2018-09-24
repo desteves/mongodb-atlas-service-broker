@@ -19,7 +19,6 @@ func getClient() (*credhub.CredHub, error) {
 		credhubEndpoint,
 		credhub.SkipTLSValidation(true),
 		credhub.Auth(auth.UaaClientCredentials(credhubClientUser, credhubClientSecret)),
-		credhub.Auth()
 	)
 	if err != nil {
 		log.Printf("Failed to create credhub client! %v", err)
