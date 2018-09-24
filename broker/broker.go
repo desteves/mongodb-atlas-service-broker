@@ -203,7 +203,6 @@ func (a AtlasBroker) Bind(ctx context.Context, instanceID, bindingID string, det
 	role := Roles{DatabaseName: UserRoleDatabase, RoleName: UserRoleName}
 	request.Roles = []Roles{role}
 
-	// TODO - Generate and fetch from CredHub
 	credhubPass, err := credhub.GenPassFromCredhub(instanceID32, bindingID32)
 	if err != nil {
 		log.Printf("Error - Bind - Failed genPassFromCredhub. Err: %+v", err)
