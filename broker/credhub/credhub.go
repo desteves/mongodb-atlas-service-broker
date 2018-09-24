@@ -12,7 +12,20 @@ import (
 )
 
 func getClient() (*credhub.CredHub, error) {
-	credhubEndpoint := os.Getenv("CREDHUB_URL")
+	vcapPlatformOps := os.Getenv("VCAP_PLATFORM_OPTIONS") 
+	credhubEndpoint := ""
+	jsonMap := make(map[string]interface{})
+	err := json.Unmarshal(vcapPlatformOps, &jsonMap)
+	if err != nil {
+	credhubEndpoint = os.Getenv("CREDHUB_URL")
+		if len(credhubEndpoint) == 0 {
+			log.Printf("Failed to create credhub client! %v", err)
+			return nil, err
+		}
+	} else {
+		credhubEndpoint = jsonMap["credhub-uri"]
+	}
+
 	credhubClientUser := os.Getenv("CREDHUB_ADMIN_CLIENT")
 	credhubClientSecret := os.Getenv("CREDHUB_CLIENT_SECRET")
 	credhubClient, err := credhub.New(
