@@ -1,6 +1,7 @@
 package credhub
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -9,29 +10,55 @@ import (
 	"code.cloudfoundry.org/credhub-cli/credhub/auth"
 	"code.cloudfoundry.org/credhub-cli/credhub/credentials"
 	"code.cloudfoundry.org/credhub-cli/credhub/credentials/generate"
+	"code.cloudfoundry.org/credhub-cli/credhub/permissions"
 )
 
 func getClient() (*credhub.CredHub, error) {
-	vcapPlatformOps := os.Getenv("VCAP_PLATFORM_OPTIONS") 
+	vcapPlatformOps := os.Getenv("VCAP_PLATFORM_OPTIONS")
 	credhubEndpoint := ""
 	jsonMap := make(map[string]interface{})
-	err := json.Unmarshal(vcapPlatformOps, &jsonMap)
+	err := json.Unmarshal([]byte(vcapPlatformOps), &jsonMap)
 	if err != nil {
-	credhubEndpoint = os.Getenv("CREDHUB_URL")
+		credhubEndpoint = os.Getenv("CREDHUB_URL")
 		if len(credhubEndpoint) == 0 {
-			log.Printf("Failed to create credhub client! %v", err)
+			log.Printf("Failed to find credhub url! %v", err)
 			return nil, err
 		}
 	} else {
-		credhubEndpoint = jsonMap["credhub-uri"]
+		temp, ok := jsonMap["credhub-uri"].(string)
+		if ok {
+			credhubEndpoint = temp
+		} else {
+			log.Printf("Failed to find credhub in VCAP_PLATFORM_OPTIONS! %v", err)
+			return nil, err
+		}
 	}
 
-	credhubClientUser := os.Getenv("CREDHUB_ADMIN_CLIENT")
-	credhubClientSecret := os.Getenv("CREDHUB_CLIENT_SECRET")
+	credhubUser := ""
+	credhubPass := ""
+
+	credhubUser = os.Getenv("CF_ADMIN_USER")
+	if len(credhubUser) == 0 {
+		credhubUser = os.Getenv("CREDHUB_ADMIN_USERNAME")
+		if len(credhubUser) == 0 {
+			log.Printf("Failed to get credhub admin username,CF_ADMIN_USER, and CREDHUB_ADMIN_USERNAME not set !")
+			return nil, err
+		}
+	}
+
+	credhubPass = os.Getenv("CF_ADMIN_PASSWORD")
+	if len(credhubPass) == 0 {
+		credhubPass = os.Getenv("CREDHUB_ADMIN_PASSWORD")
+		if len(credhubPass) == 0 {
+			log.Printf("Failed to get credhub admin password, CF_ADMIN_PASSWORD, and CREDHUB_ADMIN_PASSWORD not set !")
+			return nil, err
+		}
+	}
+
 	credhubClient, err := credhub.New(
 		credhubEndpoint,
 		credhub.SkipTLSValidation(true),
-		credhub.Auth(auth.UaaClientCredentials(credhubClientUser, credhubClientSecret)),
+		credhub.Auth(auth.UaaPassword("admin", "", credhubUser, credhubPass)),
 	)
 	if err != nil {
 		log.Printf("Failed to create credhub client! %v", err)
@@ -47,7 +74,16 @@ func EnableAppAccess(appV4UUID string, credentialName string) error {
 		return err
 	}
 	actor := fmt.Sprintf("mtls-app:%s", appV4UUID)
-	_, err = credhubClient.AddPermission(credentialName, actor, []string{"read", "read_acl"})
+	_, err = credhubClient.AddPermissions(
+		credentialName,
+		[]permissions.Permission{
+			permissions.Permission{
+				Actor:      actor,
+				Operations: []string{"read", "read_acl"},
+				Path:       credentialName,
+			},
+		},
+	)
 	if err != nil {
 		log.Printf("failed to add permission to %s %s", actor, err)
 		return err

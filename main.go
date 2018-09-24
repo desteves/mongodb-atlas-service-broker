@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 
 	"code.cloudfoundry.org/lager"
 	"github.com/desteves/mongodb-atlas-service-broker/broker"
@@ -9,25 +11,29 @@ import (
 )
 
 func main() {
-	brokerCreds := brokerapi.BrokerCredentials{
-		Username: "admin",
-		Password: "admin",
-	}
 
 	logger := lager.NewLogger("broker")
 	atlas := broker.AtlasBroker{}
+
+	username := os.Getenv("SECURITY_USER_NAME")
+	password := os.Getenv("SECURITY_USER_PASSWORD")
+
+	if len(username) == 0 {
+		logger.Fatal("SECURITY_USER_NAME is not set!", fmt.Errorf("SECURITY_USER_NAME is not set!"))
+	}
+
+	if len(password) == 0 {
+		logger.Fatal("SECURITY_USER_PASSWORD is not set!", fmt.Errorf("SECURITY_USER_PASSWORD is not set!"))
+	}
+	brokerCreds := brokerapi.BrokerCredentials{
+		Username: username,
+		Password: password,
+	}
 	handler := brokerapi.New(atlas, logger, brokerCreds)
-
-	err := http.ListenAndServe(":8080", handler)
+	port := os.Getenv("PORT")
+	if len(port) == 0 {
+		logger.Fatal("PORT is not set!", fmt.Errorf("PORT is not set!"))
+	}
+	err := http.ListenAndServe(":"+port, handler)
 	logger.Fatal("HTTP Service Failed", err, lager.Data{})
-
-	//create broker implementation (broker package)
-	//pass broker implementation to brokerapi.new(impl)
-	//should revieve back a http handler
-	//server handler as webservice
-
-	// r := gin.Default()
-	// r.GET("/v2/catalog", broker.catalog())
-	// })
-	// r.Run() // listen and serve on 0.0.0.0:8080
 }

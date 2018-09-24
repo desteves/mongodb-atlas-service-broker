@@ -3,6 +3,7 @@ package broker
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -29,6 +30,8 @@ const (
 	UserDatabaseStore = "admin"
 	UserRoleDatabase  = "admin"
 	UserRoleName      = "readWriteAnyDatabase"
+	atlasHost         = "https://cloud.mongodb.com"
+	atlasURI          = "/api/atlas/v1.0"
 )
 
 type atlasCredentials struct {
@@ -198,8 +201,8 @@ type BindResponse struct {
 
 // Does the digest handshake and assembles the actuall http call to make -- TODO move to client
 func setupRequest(argMethod string, argURI string, argPostBody []byte) (*http.Request, error) {
-	uri := os.Getenv("ATLAS_URI") + argURI
-	url := os.Getenv("ATLAS_HOST") + uri
+	uri := atlasURI + argURI
+	url := atlasHost + uri
 	emptyRequest := http.Request{}
 	req, err := http.NewRequest(argMethod, url, nil)
 	req.Header.Set("Content-Type", "application/json")
@@ -213,8 +216,23 @@ func setupRequest(argMethod string, argURI string, argPostBody []byte) (*http.Re
 	digestParts := digestParts(resp)
 	digestParts["uri"] = uri
 	digestParts["method"] = argMethod
-	digestParts["username"] = os.Getenv("ATLAS_USER")
-	digestParts["password"] = os.Getenv("ATLAS_PASS")
+
+	username := os.Getenv("ATLAS_USERNAME")
+	if len(username) == 0 {
+		err := fmt.Errorf("ATLAS_USERNAME env variable not set!")
+		log.Printf("Error - setupRequest. Err: %+v", err)
+		return &emptyRequest, err
+	}
+
+	password := os.Getenv("ATLAS_API_KEY")
+	if len(password) == 0 {
+		err := fmt.Errorf("ATLAS_API_KEY env variable not set!")
+		log.Printf("Error - setupRequest. Err: %+v", err)
+		return &emptyRequest, err
+	}
+
+	digestParts["username"] = username
+	digestParts["password"] = password
 	if argPostBody == nil {
 		req, err = http.NewRequest(argMethod, url, nil)
 	} else {
@@ -294,7 +312,14 @@ func DoDELETE(argURI string) ([]byte, error) {
 
 //NewCluster in MongoDB Atlas
 func NewCluster(argPostBody []byte) (ProvisionResponse, error) {
-	uri := "/groups/" + os.Getenv("ATLAS_GROUP") + "/clusters"
+	groupID := os.Getenv("ATLAS_GROUP_ID")
+	if len(groupID) == 0 {
+		err := fmt.Errorf("ATLAS_GROUP_ID env variable not set!")
+		log.Printf("Error - NewCluster. Err: %+v", err)
+		return ProvisionResponse{}, err
+	}
+
+	uri := "/groups/" + groupID + "/clusters"
 	returnObject := ProvisionResponse{}
 	body, err := DoPOST(uri, argPostBody)
 	if err != nil {
@@ -312,7 +337,14 @@ func NewCluster(argPostBody []byte) (ProvisionResponse, error) {
 //NewUser in MongoDB Atlas
 func NewUser(argPostBody []byte) (BindResponse, error) {
 	// https://docs.atlas.mongodb.com/reference/api/database-users-create-a-user/
-	uri := "/groups/" + os.Getenv("ATLAS_GROUP") + "/databaseUsers"
+	groupID := os.Getenv("ATLAS_GROUP_ID")
+	if len(groupID) == 0 {
+		err := fmt.Errorf("ATLAS_GROUP_ID env variable not set!")
+		log.Printf("Error - NewUser. Err: %+v", err)
+		return BindResponse{}, err
+	}
+
+	uri := "/groups/" + groupID + "/databaseUsers"
 	returnObject := BindResponse{}
 	body, err := DoPOST(uri, argPostBody)
 	if err != nil {
@@ -331,7 +363,14 @@ func NewUser(argPostBody []byte) (BindResponse, error) {
 func GetCluster(instanceID string) (LastOperationResponse, error) {
 	returnObject := LastOperationResponse{}
 	// https://docs.atlas.mongodb.com/reference/api/clusters-get-one/
-	uri := "/groups/" + os.Getenv("ATLAS_GROUP") + "/clusters/" + instanceID
+	groupID := os.Getenv("ATLAS_GROUP_ID")
+	if len(groupID) == 0 {
+		err := fmt.Errorf("ATLAS_GROUP_ID env variable not set!")
+		log.Printf("Error - GetCluster. Err: %+v", err)
+		return LastOperationResponse{}, err
+	}
+
+	uri := "/groups/" + groupID + "/clusters/" + instanceID
 	body, err := DoGET(uri)
 	if err != nil {
 		log.Printf("Error - GetCluster - Failed DoGET call.  Body: %+v, Err: %+v", body, err)
@@ -349,7 +388,14 @@ func GetCluster(instanceID string) (LastOperationResponse, error) {
 func GetUser(instanceID string, bindingID string) (LastBindingOperationResponse, error) {
 	returnObject := LastBindingOperationResponse{}
 	//https://docs.atlas.mongodb.com/reference/api/database-users-get-single-user/
-	uri := "/groups/" + os.Getenv("ATLAS_GROUP") + "/databaseUsers/admin/" + bindingID
+	groupID := os.Getenv("ATLAS_GROUP_ID")
+	if len(groupID) == 0 {
+		err := fmt.Errorf("ATLAS_GROUP_ID env variable not set!")
+		log.Printf("Error - GetUser. Err: %+v", err)
+		return LastBindingOperationResponse{}, err
+	}
+
+	uri := "/groups/" + groupID + "/databaseUsers/admin/" + bindingID
 	body, err := DoGET(uri)
 	if err != nil {
 		log.Printf("Error - GetUser - Failed DoGET call.  Body: %+v, Err: %+v", body, err)
@@ -365,7 +411,13 @@ func GetUser(instanceID string, bindingID string) (LastBindingOperationResponse,
 
 //TerminateCluster in MongoDB Atlas
 func TerminateCluster(instanceID string) (DeprovisionResponse, error) {
-	uri := "/groups/" + os.Getenv("ATLAS_GROUP") + "/clusters/" + instanceID
+	groupID := os.Getenv("ATLAS_GROUP_ID")
+	if len(groupID) == 0 {
+		err := fmt.Errorf("ATLAS_GROUP_ID env variable not set!")
+		log.Printf("Error - TerminateCluster. Err: %+v", err)
+		return DeprovisionResponse{}, err
+	}
+	uri := "/groups/" + groupID + "/clusters/" + instanceID
 	_, err := DoDELETE(uri)
 	if err != nil {
 		log.Printf("Error - TerminateCluster - Failed DoDELETE call.  Err: %+v", err)
@@ -377,7 +429,13 @@ func TerminateCluster(instanceID string) (DeprovisionResponse, error) {
 func DeleteUser(instanceID string, bindingID string) (UnbindResponse, error) {
 	//https://docs.atlas.mongodb.com/reference/api/database-users-delete-a-user/
 	//DELETE /api/atlas/v1.0/groups/{GROUP-ID}/databaseUsers/admin/{USERNAME}
-	uri := "/groups/" + os.Getenv("ATLAS_GROUP") + "/databaseUsers/admin/" + bindingID
+	groupID := os.Getenv("ATLAS_GROUP_ID")
+	if len(groupID) == 0 {
+		err := fmt.Errorf("ATLAS_GROUP_ID env variable not set!")
+		log.Printf("Error - DeleteUser. Err: %+v", err)
+		return UnbindResponse{}, err
+	}
+	uri := "/groups/" + groupID + "/databaseUsers/admin/" + bindingID
 	_, err := DoDELETE(uri)
 	if err != nil {
 		log.Printf("Error - DeleteUser - Failed DoDELETE call.  Err: %+v", err)
