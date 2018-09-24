@@ -32,7 +32,6 @@ func getClient() (*credhub.CredHub, error) {
 		credhubEndpoint,
 		credhub.SkipTLSValidation(true),
 		credhub.Auth(auth.UaaClientCredentials(credhubClientUser, credhubClientSecret)),
-		credhub.Auth()
 	)
 	if err != nil {
 		log.Printf("Failed to create credhub client! %v", err)
@@ -47,7 +46,7 @@ func EnableAppAccess(appV4UUID string, credentialName string) error {
 		log.Printf("failed to connect to credhub %s", err)
 		return err
 	}
-	actor := fmt.Sprintf("app:%s", appV4UUID)
+	actor := fmt.Sprintf("mtls-app:%s", appV4UUID)
 	_, err = credhubClient.AddPermission(credentialName, actor, []string{"read", "read_acl"})
 	if err != nil {
 		log.Printf("failed to add permission to %s %s", actor, err)
