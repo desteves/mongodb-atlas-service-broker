@@ -1,0 +1,16 @@
+applications:
+- name: atlas-broker
+  memory: 512M
+  instances: 1
+  buildpacks: 
+  - binary_buildpack
+  command: ./mongodb-atlas-service-broker
+  env:
+    ATLAS_HOST: "https://cloud.mongodb.com"
+    ATLAS_URI: "/api/atlas/v1.0"
+    ATLAS_USER: 
+    ATLAS_PASS: 
+    ATLAS_GROUP: 
+    CREDHUB_URL: 
+    CREDHUB_ADMIN_CLIENT: 
+    CREDHUB_CLIENT_SECRET: 

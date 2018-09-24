@@ -224,6 +224,11 @@ func (a AtlasBroker) Bind(ctx context.Context, instanceID, bindingID string, det
 		return returnObject, err
 	}
 
+	err = credhub.EnableAppAccess(details.AppGUID, credhubPass.Name)
+	if err != nil {
+		log.Printf("Error - Bind - Failed EnableAppAccess. Response: %+v, Err: %+v", response, err)
+		return returnObject, err
+	}
 	// fill out response
 	returnObject.IsAsync = true
 	returnObject.OperationData = OperationBind
@@ -235,12 +240,7 @@ func (a AtlasBroker) GetBinding(ctx context.Context, instanceID, bindingID strin
 	instanceID32 := strings.Replace(instanceID, "-", "", -1)
 	bindingID32 := strings.Replace(bindingID, "-", "", -1)
 	returnObject := brokerapi.GetBindingSpec{}
-
-	credhubPass, err := credhub.GetPassFromCredhub(instanceID32, bindingID32)
-	if err != nil {
-		log.Printf("Error - GetBinding - Failed genPassFromCredhub. Err: %+v", err)
-		return returnObject, err
-	}
+	pass := credhub.GetPath(instanceID32, bindingID32)
 
 	cluster, err := GetCluster(instanceID32)
 	if err != nil {
@@ -250,7 +250,7 @@ func (a AtlasBroker) GetBinding(ctx context.Context, instanceID, bindingID strin
 
 	returnObject.Credentials = atlasCredentials{
 		Username: bindingID32,
-		Password: string(credhubPass.Value),
+		Password: pass,
 		URI:      cluster.MongoURIWithOptions,
 	}
 	return returnObject, nil
