@@ -35,9 +35,7 @@ const (
 )
 
 type atlasCredentials struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	URI      string `json:"url"`
+	Credhub string `json:"credhub-ref"`
 }
 
 // AutoScaling - Provision Setting

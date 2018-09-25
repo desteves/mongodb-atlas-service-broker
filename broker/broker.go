@@ -203,13 +203,22 @@ func (a AtlasBroker) Bind(ctx context.Context, instanceID, bindingID string, det
 	role := Roles{DatabaseName: UserRoleDatabase, RoleName: UserRoleName}
 	request.Roles = []Roles{role}
 
-	credhubPass, err := credhub.GenPassFromCredhub(instanceID32, bindingID32)
+	cluster, err := GetCluster(instanceID32)
+
+	_, err = credhub.StoreJSON(instanceID32, bindingID32, cluster.MongoURIWithOptions)
 	if err != nil {
-		log.Printf("Error - Bind - Failed genPassFromCredhub. Err: %+v", err)
+		log.Printf("Error - Bind - Failed StoreJSON. Err: %+v", err)
 		return returnObject, err
 	}
+
+	password, err := credhub.GetPassFromCredhub(instanceID32, bindingID32)
+	if err != nil {
+		log.Printf("Error - Bind - Failed GetPassFromCredhub. Err: %+v", err)
+		return returnObject, err
+	}
+
 	request.Username = bindingID32
-	request.Password = string(credhubPass.Value)
+	request.Password = string(password.Value)
 
 	log.Printf("\nBind (request): %+v", request)
 
@@ -224,13 +233,27 @@ func (a AtlasBroker) Bind(ctx context.Context, instanceID, bindingID string, det
 		return returnObject, err
 	}
 
-	err = credhub.EnableAppAccess(details.AppGUID, credhubPass.Name)
+	newUserResponse := LastBindingOperationResponse{}
+	for newUserResponse.Username != bindingID32 {
+		newUserResponse, err = GetUser(instanceID32, bindingID32)
+		if err != nil {
+			log.Printf("Error - LastBindingOperation - Failed GetUser. Response: %+v, Err: %+v", response, err)
+			return returnObject, err
+		}
+	}
+
+	jsonPath := credhub.GetPath(instanceID32, bindingID32, "credential")
+	err = credhub.EnableAppAccess(details.AppGUID, jsonPath)
 	if err != nil {
 		log.Printf("Error - Bind - Failed EnableAppAccess. Response: %+v, Err: %+v", response, err)
 		return returnObject, err
 	}
+
+	returnObject.Credentials = atlasCredentials{
+		Credhub: jsonPath,
+	}
 	// fill out response
-	returnObject.IsAsync = true
+	returnObject.IsAsync = false
 	returnObject.OperationData = OperationBind
 	return returnObject, nil
 }
@@ -240,18 +263,10 @@ func (a AtlasBroker) GetBinding(ctx context.Context, instanceID, bindingID strin
 	instanceID32 := strings.Replace(instanceID, "-", "", -1)
 	bindingID32 := strings.Replace(bindingID, "-", "", -1)
 	returnObject := brokerapi.GetBindingSpec{}
-	pass := credhub.GetPath(instanceID32, bindingID32)
-
-	cluster, err := GetCluster(instanceID32)
-	if err != nil {
-		log.Printf("Error - GetBinding - Failed GetCluster. Err: %+v", err)
-		return returnObject, err
-	}
+	jsonPath := credhub.GetPath(instanceID32, bindingID32, "credential")
 
 	returnObject.Credentials = atlasCredentials{
-		Username: bindingID32,
-		Password: pass,
-		URI:      cluster.MongoURIWithOptions,
+		Credhub: jsonPath,
 	}
 	return returnObject, nil
 }
@@ -261,42 +276,42 @@ func (a AtlasBroker) GetBinding(ctx context.Context, instanceID, bindingID strin
 // LastBindingOperation - MongoDB Atlas Broker
 func (a AtlasBroker) LastBindingOperation(ctx context.Context, instanceID, bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
 
-	// no state associated with a user, so as long as we get the user back it succeeded.
-	// do need to check for weird err msgs...
-	// is this call sync? TODO Check
+	// // no state associated with a user, so as long as we get the user back it succeeded.
+	// // do need to check for weird err msgs...
+	// // is this call sync? TODO Check
 
-	instanceID32 := strings.Replace(instanceID, "-", "", -1)
-	bindingID32 := strings.Replace(bindingID, "-", "", -1)
-	lastOperationState := brokerapi.LastOperationState(brokerapi.Failed)
+	// instanceID32 := strings.Replace(instanceID, "-", "", -1)
+	// bindingID32 := strings.Replace(bindingID, "-", "", -1)
+	// lastOperationState := brokerapi.LastOperationState(brokerapi.Failed)
 	returnObject := brokerapi.LastOperation{}
 
-	response, err := GetUser(instanceID32, bindingID32)
-	if err != nil {
-		log.Printf("Error - LastBindingOperation - Failed GetUser. Response: %+v, Err: %+v", response, err)
-		// TODO -- take a closer looks at the error messages to see if the user is in progress maybe
-	} else {
-		switch details.OperationData {
-		case OperationBind:
-			if response.Username == bindingID32 {
-				lastOperationState = brokerapi.Succeeded
-			} else {
-				lastOperationState = brokerapi.Failed // how to tell if failed?
-			}
-		case OperationUnbind:
-			if response.Username == bindingID32 {
-				lastOperationState = brokerapi.InProgress
-			} else {
-				lastOperationState = brokerapi.Succeeded
-			}
-		default:
-			log.Printf("LastBindingOperation OperationData Unknown %+v", details.OperationData)
-			// lastOperationState = brokerapi.Failed
-		}
-	}
+	// response, err := GetUser(instanceID32, bindingID32)
+	// if err != nil {
+	// 	log.Printf("Error - LastBindingOperation - Failed GetUser. Response: %+v, Err: %+v", response, err)
+	// 	// TODO -- take a closer looks at the error messages to see if the user is in progress maybe
+	// } else {
+	// 	switch details.OperationData {
+	// 	case OperationBind:
+	// 		if response.Username == bindingID32 {
+	// 			lastOperationState = brokerapi.Succeeded
+	// 		} else {
+	// 			lastOperationState = brokerapi.Failed // how to tell if failed?
+	// 		}
+	// 	case OperationUnbind:
+	// 		if response.Username == bindingID32 {
+	// 			lastOperationState = brokerapi.InProgress
+	// 		} else {
+	// 			lastOperationState = brokerapi.Succeeded
+	// 		}
+	// 	default:
+	// 		log.Printf("LastBindingOperation OperationData Unknown %+v", details.OperationData)
+	// 		// lastOperationState = brokerapi.Failed
+	// 	}
+	// }
 
-	returnObject.State = lastOperationState
-	returnObject.Description = "Atlas Responded with User: " + response.Username
-	log.Printf("\nLastBindingOperation (details): %+v\nLastBindingOperation (response): %+v\nLastBindingOperation (returnObject): %+v\n", details, response, returnObject)
+	// returnObject.State = lastOperationState
+	// returnObject.Description = "Atlas Responded with User: " + response.Username
+	// log.Printf("\nLastBindingOperation (details): %+v\nLastBindingOperation (response): %+v\nLastBindingOperation (returnObject): %+v\n", details, response, returnObject)
 	return returnObject, nil
 }
 
@@ -313,13 +328,22 @@ func (a AtlasBroker) Unbind(ctx context.Context, instanceID, bindingID string, d
 		return returnObject, err
 	}
 
-	err = credhub.DeletePassFromCredhub(instanceID32, bindingID32)
+	newUserResponse := LastBindingOperationResponse{}
+	for newUserResponse.Username == bindingID32 {
+		newUserResponse, err = GetUser(instanceID32, bindingID32)
+		if err != nil {
+			log.Printf("Error - LastBindingOperation - Failed GetUser. Response: %+v, Err: %+v", newUserResponse, err)
+			return returnObject, err
+		}
+	}
+
+	err = credhub.DeleteJSONFromCredhub(instanceID32, bindingID32)
 	if err != nil {
 		log.Printf("Error - Unbind - Failed DeletePassFromCredhub to delete user from credhub. Err: %+v", err)
 		return returnObject, err
 	}
 
-	returnObject.IsAsync = true
+	returnObject.IsAsync = false
 	returnObject.OperationData = OperationUnbind
 	return returnObject, nil
 
