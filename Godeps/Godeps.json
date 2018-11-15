@@ -1,0 +1,126 @@
+{
+	"ImportPath": "github.com/desteves/mongodb-atlas-service-broker",
+	"GoVersion": "go1.11",
+	"GodepVersion": "v80",
+	"Deps": [
+		{
+			"ImportPath": "code.cloudfoundry.org/credhub-cli/credhub",
+			"Comment": "2.0.0-7-g328cb27",
+			"Rev": "328cb27f08f377518bf6ee5c4e334d97d64f00b3"
+		},
+		{
+			"ImportPath": "code.cloudfoundry.org/credhub-cli/credhub/auth",
+			"Comment": "2.0.0-7-g328cb27",
+			"Rev": "328cb27f08f377518bf6ee5c4e334d97d64f00b3"
+		},
+		{
+			"ImportPath": "code.cloudfoundry.org/credhub-cli/credhub/auth/uaa",
+			"Comment": "2.0.0-7-g328cb27",
+			"Rev": "328cb27f08f377518bf6ee5c4e334d97d64f00b3"
+		},
+		{
+			"ImportPath": "code.cloudfoundry.org/credhub-cli/credhub/credentials",
+			"Comment": "2.0.0-7-g328cb27",
+			"Rev": "328cb27f08f377518bf6ee5c4e334d97d64f00b3"
+		},
+		{
+			"ImportPath": "code.cloudfoundry.org/credhub-cli/credhub/credentials/generate",
+			"Comment": "2.0.0-7-g328cb27",
+			"Rev": "328cb27f08f377518bf6ee5c4e334d97d64f00b3"
+		},
+		{
+			"ImportPath": "code.cloudfoundry.org/credhub-cli/credhub/credentials/values",
+			"Comment": "2.0.0-7-g328cb27",
+			"Rev": "328cb27f08f377518bf6ee5c4e334d97d64f00b3"
+		},
+		{
+			"ImportPath": "code.cloudfoundry.org/credhub-cli/credhub/permissions",
+			"Comment": "2.0.0-7-g328cb27",
+			"Rev": "328cb27f08f377518bf6ee5c4e334d97d64f00b3"
+		},
+		{
+			"ImportPath": "code.cloudfoundry.org/credhub-cli/credhub/server",
+			"Comment": "2.0.0-7-g328cb27",
+			"Rev": "328cb27f08f377518bf6ee5c4e334d97d64f00b3"
+		},
+		{
+			"ImportPath": "code.cloudfoundry.org/credhub-cli/errors",
+			"Comment": "2.0.0-7-g328cb27",
+			"Rev": "328cb27f08f377518bf6ee5c4e334d97d64f00b3"
+		},
+		{
+			"ImportPath": "code.cloudfoundry.org/lager",
+			"Comment": "v1.1.0",
+			"Rev": "b60e04e119450552243196105bae0d42179ee0ca"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry-incubator/candiedyaml",
+			"Rev": "a41693b7b7afb422c7ecb1028458ab27da047bbb"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry/go-socks5",
+			"Rev": "54f73bdb8a8e85a6611d3d29ab9bbf98c2a060d7"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry/socks5-proxy",
+			"Rev": "3659db090cb23a57807b53e2f8580b2427dc2659"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Comment": "v1.6.2-9-g9e1f595",
+			"Rev": "9e1f5955c0d22b55d9e20d6faa28589f83b2faca"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-version",
+			"Comment": "v1.0.0",
+			"Rev": "b5a281d3160aa11950a6182bd9a9dc2cb1e02d50"
+		},
+		{
+			"ImportPath": "github.com/pivotal-cf/brokerapi",
+			"Comment": "v3.0.0",
+			"Rev": "176671d73d5fad1ad9d44e66846964da3fd32db6"
+		},
+		{
+			"ImportPath": "github.com/pivotal-cf/brokerapi/auth",
+			"Comment": "v3.0.0",
+			"Rev": "176671d73d5fad1ad9d44e66846964da3fd32db6"
+		},
+		{
+			"ImportPath": "github.com/pkg/errors",
+			"Comment": "v0.8.0-13-gc059e47",
+			"Rev": "c059e472caf75dbe73903f6521a20abac245b17f"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/curve25519",
+			"Rev": "3d3f9f413869b949e48070b5bc593aa22cc2b8f2"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ed25519",
+			"Rev": "3d3f9f413869b949e48070b5bc593aa22cc2b8f2"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ed25519/internal/edwards25519",
+			"Rev": "3d3f9f413869b949e48070b5bc593aa22cc2b8f2"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/internal/chacha20",
+			"Rev": "3d3f9f413869b949e48070b5bc593aa22cc2b8f2"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/poly1305",
+			"Rev": "3d3f9f413869b949e48070b5bc593aa22cc2b8f2"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ssh",
+			"Rev": "3d3f9f413869b949e48070b5bc593aa22cc2b8f2"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "adae6a3d119ae4890b46832a2e88a95adc62b8e7"
+		},
+		{
+			"ImportPath": "golang.org/x/net/proxy",
+			"Rev": "adae6a3d119ae4890b46832a2e88a95adc62b8e7"
+		}
+	]
+}
