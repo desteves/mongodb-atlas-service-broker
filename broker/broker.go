@@ -5,10 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-<<<<<<< HEAD
 	"os"
-=======
->>>>>>> Added godep
 	"strings"
 
 	"github.com/desteves/mongodb-atlas-service-broker/broker/credhub"
