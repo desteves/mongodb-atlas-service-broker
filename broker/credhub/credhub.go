@@ -132,7 +132,7 @@ func StoreJSON(instanceID string, bindingID string, mongoURI string) (credential
 	m["password"] = string(password.Value)
 	m["uri"] = parsedMongoURIDB
 
-	json, err := credhubClient.SetJSON(credentialName, m)
+	json, err := credhubClient.SetJSON(credentialName, m, credhub.Overwrite)
 	if err != nil {
 		log.Printf("failed to setJSON in credhub %+v %s", m, err)
 		return credentials.JSON{}, err

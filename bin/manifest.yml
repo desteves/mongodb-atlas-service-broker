@@ -1,0 +1,12 @@
+applications:
+- name: atlas-broker
+  command: ./mongodb-atlas-service-broker 
+  buildpack: binary_buildpack
+  env:
+      ATLAS_USERNAME: diana.esteves
+      ATLAS_API_KEY: d76d39bf-b356-4e8d-bbd0-b78998e75e56
+      ATLAS_GROUP_ID: 5b75e84b3b34b9469d01b20e
+      ATLAS_HOST: cloud.mongodb.com
+      UAA_ADMIN_CLIENT_SECRET: W6q3YNrRbUrx2-H8wd5sLRTTVRCRhRqH
+      SECURITY_USER_NAME: admin
+      SECURITY_USER_PASSWORD: admin
