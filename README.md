@@ -1,5 +1,7 @@
 # mongodb-atlas-service-broker
 
+[![Git](https://app.soluble.cloud/api/v1/public/badges/20c8327f-aa15-4b95-ba4d-bb908967fb11.svg?orgId=679096383598)](https://app.soluble.cloud/repos/details/github.com/desteves/mongodb-atlas-service-broker?orgId=679096383598)  
+
 Uses the [Open Service Broker API](https://github.com/openservicebrokerapi/servicebroker) standard for [MongoDB Atlas](https://www.mongodb.com/cloud/atlas). Note, this broker also integrates with [CredHub](https://docs.cloudfoundry.org/credhub/) but that part is "pluggable". 
 
 
